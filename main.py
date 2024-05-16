@@ -7,7 +7,7 @@ app = FastAPI(docs_url='/')
 @app.post('/elements')
 async def post_elements(upload: UploadFile = File(description='File to convert to elements')):
     logging.info(f"Converting {upload.filename} to elements")
-    elements = partition(file=upload.file, metadata_filename=upload.filename)
+    elements = partition(file=upload.file, metadata_filename=upload.filename, strategy='hi_res')
     return {
         'data': elements
     }
