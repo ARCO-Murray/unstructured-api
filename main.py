@@ -1,11 +1,11 @@
 import json
 import logging
-import time
 import os
-from io import BytesIO
+import time
 from contextlib import asynccontextmanager
+from functools import wraps
+from io import BytesIO
 
-import logging_util
 from fastapi import (
     Depends,
     FastAPI,
@@ -18,6 +18,9 @@ from fastapi import (
     status,
 )
 from unstructured.partition.auto import partition
+from unstructured.partition.pdf import partition_pdf
+
+import logging_util
 
 
 @asynccontextmanager
@@ -40,32 +43,52 @@ async def req_api_key(request: Request):
             )
 
 
+def log_execution_time(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        execution_time = end_time - start_time
+        logging.info(
+            f"Function '{func.__name__}' took {execution_time:.4f} seconds to complete."
+        )
+        return result
+
+    return wrapper
+
+
+@log_execution_time
 def partition_doc(upload, coordinates, strategy, max_characters):
     file = BytesIO(upload.file.read())
     partition_kwargs = {
         "metadata_filename": upload.filename,
         "strategy": strategy,
-        # "max_characters": max_characters,
+        "max_characters": max_characters,
     }
     logging.info(f"partition_kwargs = {json.dumps(partition_kwargs, default=str)}")
-    elements = partition(file=file, metadata_filename=upload.filename, strategy=strategy)
+    elements = partition(
+        file=file,
+        metadata_filename=upload.filename,
+        strategy=strategy,
+    )
 
     logging.info(f"partition finished elements len = {len(elements)}")
 
-    # for i, element in enumerate(elements):
-    #     elements[i].metadata.filename = os.path.basename(upload.filename)
-    #
-    #     if not coordinates and element.metadata.coordinates:
-    #         elements[i].metadata.coordinates = None
-    #
-    #     if element.metadata.last_modified:
-    #         elements[i].metadata.last_modified = None
-    #
-    #     if element.metadata.file_directory:
-    #         elements[i].metadata.file_directory = None
-    #
-    #     if element.metadata.detection_class_prob:
-    #         elements[i].metadata.detection_class_prob = None
+    for i, element in enumerate(elements):
+        elements[i].metadata.filename = os.path.basename(upload.filename)
+
+        if not coordinates and element.metadata.coordinates:
+            elements[i].metadata.coordinates = None
+
+        if element.metadata.last_modified:
+            elements[i].metadata.last_modified = None
+
+        if element.metadata.file_directory:
+            elements[i].metadata.file_directory = None
+
+        if element.metadata.detection_class_prob:
+            elements[i].metadata.detection_class_prob = None
 
     return [e.to_dict() for e in elements]
 
@@ -87,10 +110,14 @@ async def post_elements(
     return result
 
 
-@app.get("/test")
-async def test():
-    logging.info("TEST REACHED!!!!")
-    start = time.time()
-    elements = partition(filename="C884.pdf", strategy="auto")
-    logging.info(f"took {time.time() - start} sec elements len = {len(elements)}")
-    return Response(content="WORKING!", media_type="text/plain", status_code=200)
+# @app.get("/test", dependencies=[Depends(req_api_key)])
+# async def test():
+#     logging.info("TEST REACHED!!!!")
+#     start = time.time()
+#     with open("C884.pdf", 'rb') as file:
+#         file_read = time.time()
+#         print(f"file open took {file_read - start} sec")
+#         elements = partition_pdf(file=file, strategy="auto")
+#     print(f"took {time.time() - start} sec elements len = {len(elements)}")
+#     # logging.info(f"took {time.time() - start} sec elements len = {len(elements)}")
+#     return Response(content=f"Took {time.time()-start} seconds", media_type="text/plain", status_code=200)

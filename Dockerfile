@@ -4,9 +4,9 @@ FROM downloads.unstructured.io/unstructured-io/unstructured:latest
 WORKDIR /app
 
 # Copy the current directory contents into the container at /app
-COPY requirements.in /app
+COPY requirements.txt /app
 
-RUN pip install --no-cache-dir -r requirements.in
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . /app
 
