@@ -36,7 +36,7 @@ jobs:
         with:
           appSourcePath: ${{ github.workspace }}
           _dockerfilePathKey_: _dockerfilePath_
-          registryUrl: 
+          registryUrl: arcoinnoregistry.azurecr.io
           registryUsername: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
           containerAppName: unstructured-api
