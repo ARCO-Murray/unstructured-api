@@ -41,7 +41,7 @@ jobs:
           registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
           containerAppName: unstructured-api
           resourceGroup: ARCO-PROD-Innovation-RG-01
-          imageToBuild: default/[parameters('containerAppName')]:${{ github.sha }}
+          imageToBuild: arcoinnoregistry.azurecr.io/unstructured-api:${{ github.sha }}
           _buildArgumentsKey_: |
             _buildArgumentsValues_
 
