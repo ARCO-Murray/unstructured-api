@@ -1,4 +1,4 @@
-FROM downloads.unstructured.io/unstructured-io/unstructured:latest
+FROM --platform=linux/amd64 downloads.unstructured.io/unstructured-io/unstructured:latest
 
 # Set the working directory in the container
 WORKDIR /app
