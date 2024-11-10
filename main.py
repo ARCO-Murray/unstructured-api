@@ -110,6 +110,11 @@ async def post_elements(
     return result
 
 
+@app.get("/healthcheck", dependencies=[Depends(req_api_key)])
+async def healthcheck():
+    return Response(content="Alive!", media_type="text/plain", status_code=200)
+
+
 # @app.get("/test", dependencies=[Depends(req_api_key)])
 # async def test():
 #     logging.info("TEST REACHED!!!!")
