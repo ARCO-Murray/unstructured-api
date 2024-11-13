@@ -1,3 +1,5 @@
 unstructured[all-docs]
-fastapi
-uvicorn
+minio
+azure-storage-blob
+azure-servicebus
+requests

@@ -2,11 +2,28 @@ services:
   app:
     build: .
     environment:
-      - PORT=8080
-      - API_KEY=${API_KEY}
+      # - BLOB_ENDPOINT=http://minio:9000
+      # - BLOB_ACCESS_KEY=minioadmin
+      # - BLOB_SECRET_KEY=secretsecret
+      - BLOB_BUCKET=documents
+      - BLOB_URL=https://arcoprodwallystorage.blob.core.windows.net//documents/4a990b42-9c45-e693-4b7f-bc939fdc4d0c
+      - FILE_NAME=n/a
+      - CALLBACK_URL=
+      - UNSTRUCTURED_COORDINATES=False
+      - UNSTRUCTURED_STRATEGY=auto
+      - UNSTRUCTURED_MAX_CHARACTERS=8000
+      # - PYTHONPATH=.
     volumes:
       - .:/app
     command:
-      ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080", "--reload"]
+      # bash -c "pip list
+      # && cat requirements.txt
+      # && python3 src/main.py"
+      ["python3", "src/main.py"]
     ports:
       - "${PORT:-9000}:8080"
+    networks:
+      - arco-wally_minio_network
+networks:
+  arco-wally_minio_network:
+    external: true
