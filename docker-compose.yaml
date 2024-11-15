@@ -2,17 +2,14 @@ services:
   app:
     build: .
     environment:
-      # - BLOB_ENDPOINT=http://minio:9000
-      # - BLOB_ACCESS_KEY=minioadmin
-      # - BLOB_SECRET_KEY=secretsecret
+      - SERVICE_BUS_CONNECTION_STRING=${SERVICE_BUS_CONNECTION_STRING}
+      - QUEUE_NAME=${QUEUE_NAME}
+      - BLOB_ENDPOINT=${BLOB_ENDPOINT}
+      - BLOB_ACCESS_KEY=${BLOB_ACCESS_KEY}
+      - BLOB_SECRET_KEY=${BLOB_SECRET_KEY}
       - BLOB_BUCKET=documents
-      - BLOB_URL=https://arcoprodwallystorage.blob.core.windows.net//documents/4a990b42-9c45-e693-4b7f-bc939fdc4d0c
-      - FILE_NAME=n/a
-      - CALLBACK_URL=
-      - UNSTRUCTURED_COORDINATES=False
-      - UNSTRUCTURED_STRATEGY=auto
-      - UNSTRUCTURED_MAX_CHARACTERS=8000
-      # - PYTHONPATH=.
+      - WALLY_URL=${WALLY_URL}
+      - WALLY_BEARER=${WALLY_BEARER}
     volumes:
       - .:/app
     command:

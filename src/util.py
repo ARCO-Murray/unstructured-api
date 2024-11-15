@@ -1,6 +1,12 @@
 import logging
 from functools import wraps
 from time import time
+from urllib.parse import urljoin
+
+from requests import post
+from requests.exceptions import ConnectionError
+
+from src import env
 
 
 def sizeof_fmt(num, suffix="B"):
@@ -13,9 +19,9 @@ def sizeof_fmt(num, suffix="B"):
 
 def log_execution_time(func):
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         start_time = time()
-        result = func(*args, **kwargs)
+        result = await func(*args, **kwargs)
         end_time = time()
         execution_time = end_time - start_time
         logging.info(
@@ -24,3 +30,19 @@ def log_execution_time(func):
         return result
 
     return wrapper
+
+
+def notify_callback(callback_url, status, data):
+    headers = {"Authorization": f"Bearer {env.WALLY_BEARER}"}
+    payload = {"status_code": status, "data": data}
+    try:
+        response = post(
+            urljoin(env.WALLY_URL, callback_url),
+            json=payload,
+            headers=headers,
+        )
+        response.raise_for_status()
+    except ConnectionError as conn_err:
+        logging.error(f"cannot connect to callback_url: {callback_url}")
+    except Exception as e:
+        logging.error(f"bad response from callback_url: {e}")

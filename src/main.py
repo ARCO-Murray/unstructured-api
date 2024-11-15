@@ -1,33 +1,16 @@
+import asyncio
 import json
 import logging
 import os
-from functools import lru_cache
 from pprint import pprint
 
-from azure.servicebus import ServiceBusMessage
-from azure.servicebus.aio import ServiceBusClient
-from requests import post
 from unstructured.partition.auto import partition
 from unstructured.partition.pdf import partition_pdf
 
-import env
 import logging_util as log_util
-from util import log_execution_time, sizeof_fmt
-
-# from storage.storage import get_storage_client
-# from storage import storage
-
-
-@lru_cache
-def get_storage_client():
-    # TODO do this dynamically
-    from storage import azure, minio
-
-    for mod in [azure, minio]:
-        print(f"Checking {mod=}")
-        if hasattr(mod, "is_valid") and mod.is_valid(env.BLOB_ENDPOINT):
-            return mod
-    raise Exception(f"No valid storage client found for {env.BLOB_ENDPOINT}!!!!")
+from src.azure_queue import retrieve_messages
+from src.storage.storage import get_storage_client
+from util import log_execution_time, notify_callback, sizeof_fmt
 
 
 def download_file(blob_url):
@@ -36,13 +19,8 @@ def download_file(blob_url):
     return stream
 
 
-def notify_callback(callback_url, status, data):
-    response = post(callback_url, json={"status": status, "data": data})
-    response.raise_for_status()
-
-
 @log_execution_time
-def partition_doc(file, filename, coordinates, strategy, max_characters):
+async def partition_doc(file, filename, coordinates, strategy, max_characters):
     elements = partition(
         file=file,
         metadata_filename=filename,
@@ -70,83 +48,69 @@ def partition_doc(file, filename, coordinates, strategy, max_characters):
     return [e.to_dict() for e in elements]
 
 
-def retrieve_messages():
-    connection_string = env.SERVICE_BUS_CONNECTION_STRING
-
-    with ServiceBusClient.from_connection_string(
-        conn_str=connection_string, logging_enable=True
-    ) as client:
-        with client.get_queue_receiver(queue_name=env.QUEUE_NAME) as receiver:
-            messages = receiver.receive_messages()  # defaults to fetch 1 message
-            for m in messages:
-                receiver.complete_message(m)
-                # receiver.defer_message(m) # Defers message to be retrived by id (arco-wally)
-            logging.info(json.dumps(messages, indent=2))
-            return messages
-
-
 @log_execution_time
-def main():
-    # blob_url = env.BLOB_URL
-    # filename = env.FILE_NAME
-    # coordinates = env.UNSTRUCTURED_COORDINATES
-    # strategy = env.UNSTRUCTURED_STRATEGY
-    # max_characters = env.UNSTRUCTURED_MAX_CHARACTERS
-    # callback_url = env.CALLBACK_URL
-    # try:
-    #     if not blob_url:
-    #         raise ValueError("BLOB_URL environment variable not set")
-    #     if not filename:
-    #         raise ValueError("FILE_NAME environment variable not set")
-    #
-    #     coordinates = (
-    #         coordinates == "True"
-    #     )  # parse coorindates into bool, default to false
-    #     if not strategy:
-    #         strategy = "auto"
-    #     try:
-    #         max_characters = int(max_characters)
-    #     except:
-    #         max_characters = 500
-    #
-    #     args = {
-    #         "blob_url": blob_url,
-    #         "filename": filename,
-    #         "coordinates": coordinates,
-    #         "strategy": strategy,
-    #         "max_characters": max_characters,
-    #         "callback_url": callback_url,
-    #     }
-    #
-    #     logging.info(f"args = {json.dumps(args, default=str)}")
-    #
-    #     # file = download_file(blob_url)  # returns ByteIO stream
-    #     #
-    #     # result = partition_doc(
-    #     #     file=file,
-    #     #     filename=filename,
-    #     #     coordinates=coordinates,
-    #     #     strategy=strategy,
-    #     #     max_characters=max_characters,
-    #     # )
-    #     #
-    #     # file.close()
-    #
-    #     logging.info(f"Processing complete.")
-    #
-    #     if callback_url:
-    #         notify_callback(callback_url, status=200, data=result)
-    # except Exception as e:
-    #     logging.error("Error occured!!!")
-    #     logging.error(e)
-    #     if callback_url:
-    #         notify_callback(callback_url, status=500, data="Internal Server Error")
+async def main():
+    try:
+        messages = await retrieve_messages()
+    except Exception as e:
+        logging.error("Failed to retrieve messages")
+        return
 
-    for msg in retrieve_messages():
-        logging.info(vars(msg))
+    if not len(messages):
+        logging.info("No messages fetched")
+
+    for data in messages:
+        # if (key := data.get("api_key")) != env.API_KEY:
+        #     logging.info(f"api_key {key} is invalid")
+        #     continue
+        if not (callback_url := data.get("callback_url")):
+            logging.info("No callback_url, not processing message")
+            continue
+        if not (blob_url := data.get("blob_url")):
+            logging.info("No blob_url, not processing message")
+            continue
+
+        try:
+            file_name = data.get("file_name")
+            coordinates = data.get("coordinates", False)
+            strategy = data.get("strategy", "auto")
+            max_characters = data.get("max_characters", 500)
+
+            args = {
+                "blob_url": blob_url,
+                "filename": file_name,
+                "coordinates": coordinates,
+                "strategy": strategy,
+                "max_characters": max_characters,
+                "callback_url": callback_url,
+            }
+
+            logging.info(f"args = {json.dumps(args, default=str)}")
+
+            file = download_file(blob_url)  # returns ByteIO stream
+
+            result = await partition_doc(
+                file=file,
+                filename=file_name,
+                coordinates=coordinates,
+                strategy=strategy,
+                max_characters=max_characters,
+            )
+
+            data["elements"] = result
+
+            file.close()
+
+            logging.info(f"File '{file_name}' partition complete.")
+
+            notify_callback(callback_url, status=200, data=data)
+
+        except Exception as e:
+            logging.error(e)
+            notify_callback(callback_url, status=500, data="Internal Server Error")
 
 
 if __name__ == "__main__":
     log_util.setup()
     logging.info("Starting up")
-    main()
+    asyncio.run(main())
