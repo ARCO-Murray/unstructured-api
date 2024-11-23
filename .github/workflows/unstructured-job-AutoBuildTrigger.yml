@@ -27,7 +27,7 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_CLIENT_ID }}
+          client-id: ${{ secrets.UNSTRUCTUREDJOB_CLIENT_ID }}
           tenant-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_SUBSCRIPTION_ID }}
 
@@ -42,4 +42,6 @@ jobs:
           containerAppName: unstructured-job
           resourceGroup: ARCO-PROD-Innovation-RG-01
           imageToBuild: arcoinnoregistry.azurecr.io/unstructured-job:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
 
