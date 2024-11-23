@@ -1,0 +1,45 @@
+name: Trigger auto build for unstructured-job
+
+# When this action will be executed
+on:
+  # Automatically trigger it when detected changes in repo
+  push:
+    branches: 
+      [ jobify ]
+    paths:
+    - '**'
+    - '.github/workflows/unstructured-job-AutoBuildTrigger.yml'
+
+  # Allow manual trigger 
+  workflow_dispatch:      
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions: 
+      id-token: write #This is required for requesting the OIDC JWT Token
+      contents: read #Required when GH token is used to authenticate with private repo
+
+    steps:
+      - name: Checkout to the branch
+        uses: actions/checkout@v2
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}
+          _dockerfilePathKey_: _dockerfilePath_
+          registryUrl: arcoinnoregistry.azurecr.io
+          registryUsername: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
+          containerAppName: unstructured-job
+          resourceGroup: ARCO-PROD-Innovation-RG-01
+          imageToBuild: arcoinnoregistry.azurecr.io/unstructured-job:${{ github.sha }}
+
