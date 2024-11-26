@@ -1,6 +1,7 @@
 services:
   app:
     build: .
+    # image: arcoinnoregistry.azurecr.io/unstructured-job:latest
     environment:
       - SERVICE_BUS_CONNECTION_STRING=${SERVICE_BUS_CONNECTION_STRING}
       - QUEUE_NAME=${QUEUE_NAME}

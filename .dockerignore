@@ -1,5 +1,6 @@
 .git
 Dockerfile
+venv/
 
 .github
 **/__pycache__
