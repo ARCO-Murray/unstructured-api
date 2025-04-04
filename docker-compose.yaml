@@ -11,6 +11,7 @@ services:
       - BLOB_BUCKET=documents
       - WALLY_URL=${WALLY_URL}
       - WALLY_BEARER=${WALLY_BEARER}
+      - QUEUE_MESSAGE_COUNT=${QUEUE_MESSAGE_COUNT:-10}
     volumes:
       - .:/app
     command:
