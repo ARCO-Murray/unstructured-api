@@ -1,6 +1,9 @@
 .git
 Dockerfile
 venv/
+.venv/
 
 .github
 **/__pycache__
+
+*.log

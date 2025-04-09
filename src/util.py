@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from functools import wraps
 from time import time
@@ -6,7 +7,9 @@ from urllib.parse import urljoin
 from requests import post
 from requests.exceptions import ConnectionError
 
+import src.logging_util as log_util
 from src import env
+from src.azure_queue import retrieve_messages
 
 
 def sizeof_fmt(num, suffix="B"):
@@ -32,6 +35,47 @@ def log_execution_time(func):
     return wrapper
 
 
+def process_messages(func):
+    @wraps(func)
+    async def wrapper():
+        try:
+            messages = await retrieve_messages();
+        except Exception as e:
+            logging.error(f"Failed to retrieve messages: {e}")
+            return
+        if not len(messages):
+            logging.info("No messages fetched")
+            return
+
+        errored = 0
+        successful = 0
+
+        for msg in messages:
+            logging.info(f"Processing message: {msg}")
+            if not (callback_url := msg.pop("callback_url")):
+                logging.info("No callback_url, not processing message")
+                continue
+            try:
+                result = await func(**msg)
+                if result is None:
+                    raise Exception("Result is None")
+                logging.info(f"result: {result[0:10]}")
+
+                notify_callback(callback_url, status=200, data=result)
+                successful += 1
+            except TypeError as te:
+                logging.error(f"process_messages Type Error: {te}")
+                notify_callback(callback_url, status=400, data=f"Type error: message doesn't contain correct info. {te}")
+            except Exception as e:
+                logging.error(f"process_messages Error: {e}")
+                notify_callback(callback_url, status=500, data="Internal server Error")
+            finally:
+                errored += 1
+
+        logging.info(f"Processed {len(messages)} messages: {successful} success, {errored} err")
+    return wrapper
+
+
 def notify_callback(callback_url, status, data):
     headers = {"Authorization": f"Bearer {env.WALLY_BEARER}"}
     payload = {"status_code": status, "data": data}
@@ -46,3 +90,14 @@ def notify_callback(callback_url, status, data):
         logging.error(f"cannot connect to callback_url: {callback_url}")
     except Exception as e:
         logging.error(f"bad response from callback_url: {e}")
+
+
+def main_setup(func):
+    def wrapper(*args, **kwargs):
+        log_util.setup()
+        logging.info("Starting up")
+        result = asyncio.run(func(*args, **kwargs))
+        return result
+    return wrapper
+    
+
