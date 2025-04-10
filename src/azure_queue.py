@@ -23,7 +23,7 @@ async def retrieve_messages():
             msg_list = []
             for m in messages:
                 await receiver.complete_message(m)
-                logging.info(f"message {m.message_id} was completed")
+                logging.info(f"message {m.message_id} was retrieved")
                 msg_list.append(json.loads(next(m.body)))
                 # receiver.defer_message(m) # Defers message to be retrived by id (arco-wally)
             return msg_list

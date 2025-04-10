@@ -63,14 +63,13 @@ def process_messages(func):
 
                 notify_callback(callback_url, status=200, data=result)
                 successful += 1
-            except TypeError as te:
-                logging.error(f"process_messages Type Error: {te}")
-                notify_callback(callback_url, status=400, data=f"Type error: message doesn't contain correct info. {te}")
             except Exception as e:
-                logging.error(f"process_messages Error: {e}")
-                notify_callback(callback_url, status=500, data="Internal server Error")
-            finally:
                 errored += 1
+                logging.error(f"process_messages Error: {e}")
+                if isinstance(e, TypeError):
+                    notify_callback(callback_url, status=400, data=f"Type error: message doesn't contain correct info. {e}")
+                else:
+                    notify_callback(callback_url, status=500, data="Internal server Error")
 
         logging.info(f"Processed {len(messages)} messages: {successful} success, {errored} err")
     return wrapper

@@ -10,15 +10,15 @@ from src.util import log_execution_time, main_setup, process_messages
 
 
 @log_execution_time
-def download_file(blob_url, file_name):
-    temp_file_name = f"temp/{file_name}_{uuid.uuid4().hex}.tmp"
+async def download_file(blob_url, file_name):
+    temp_file_name = f"{uuid.uuid4().hex}.tmp"
     stream = get_storage_client().get_object(blob_url)
     with open(temp_file_name, "wb") as file:
-        file.write(stream)
+        file.write(stream.getbuffer())
     return temp_file_name
 
 @log_execution_time
-def chunk_response(xml_text):
+async def chunk_response(xml_text):
     text = md(xml_text)
     text_list = text.split("\n")
     return [{'element_id': str(uuid.uuid4()), 'text': t} for t in text_list]
@@ -35,9 +35,11 @@ extractor.set_xml_output(True)
 @log_execution_time
 @process_messages
 async def handle_message(blob_url, file_name):
-    file = download_file(blob_url, file_name)  # returns ByteIO stream
+    file = await download_file(blob_url, file_name)  # returns ByteIO stream
+    logging.debug(f"temp download file name: {file}")
     try:
         result, metadata = extractor.extract_file_to_string(file)
+        logging.debug(f"result type: {type(result)}")
         logging.info(f"File '{file_name}' extraction complete.")
     except Exception as e:
         logging.error(f"File '{file_name}' extraction failed: {e}")
@@ -45,7 +47,7 @@ async def handle_message(blob_url, file_name):
 
     os.remove(file)
 
-    return chunk_response(result)
+    return await chunk_response(result)
 
 
 if __name__ == "__main__":
