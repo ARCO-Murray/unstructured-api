@@ -19,13 +19,6 @@ jobs:
     permissions: 
       id-token: write #This is required for requesting the OIDC JWT Token
       contents: read #Required when GH token is used to authenticate with private repo
-    env:
-      BLOB_ENDPOINT: https://arcoprodwallystorage.blob.core.windows.net/
-      BLOB_ACCESS_KEY: arcoprodwallystorage
-      BLOB_BUCKET: documents
-      WALLY_URL: https://wally-arco-v2.blackplant-1feb3b88.eastus.azurecontainerapps.io
-      QUEUE_MESSAGE_COUNT: 10
-      QUEUE_WAIT_TIME: 5
       
     steps:
       - name: Checkout to the branch
@@ -37,49 +30,20 @@ jobs:
           client-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_SUBSCRIPTION_ID }}
-
-      - name: Build and push Unstructured container image to registry
-        uses: azure/container-apps-deploy-action@v2
+          
+      - name: 'Docker login to registry'
+        uses: azure/docker-login@v1
         with:
-          appSourcePath: ${{ github.workspace }}
-          registryUrl: arcoinnoregistry.azurecr.io
-          registryUsername: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
-          containerAppName: unstructured-job
-          resourceGroup: ARCO-PROD-Innovation-RG-01
-          dockerfilePath: unstructured_src/Dockerfile
-          imageToBuild: arcoinnoregistry.azurecr.io/unstructured-job:${{ github.sha }}
-          environmentVariables: >-
-            BLOB_ENDPOINT=${{ env.BLOB_ENDPOINT }} 
-            BLOB_ACCESS_KEY=${{ env.BLOB_ACCESS_KEY }}
-            BLOB_SECRET_KEY=${{ secrets.BLOB_SECRET_KEY }}
-            BLOB_BUCKET=${{ env.BLOB_BUCKET }}
-            SERVICE_BUS_CONNECTION_STRING=${{ secrets.UNSTRUCTURED_CONNECTION_STRING }}
-            QUEUE_NAME=wally-to-unstructured
-            WALLY_URL=${{ env.WALLY_URL }}
-            WALLY_BEARER=${{ secrets.WALLY_BEARER }}
-            QUEUE_MESSAGE_COUNT=${{ env.QUEUE_MESSAGE_COUNT }}
-            QUEUE_WAIT_TIME=${{ env.QUEUE_WAIT_TIME }}
-
-      - name: Build and push Extractous container image to registry
-        uses: azure/container-apps-deploy-action@v2
-        with:
-          appSourcePath: ${{ github.workspace }}
-          registryUrl: arcoinnoregistry.azurecr.io
-          registryUsername: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
-          registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
-          containerAppName: extractous-job
-          resourceGroup: ARCO-PROD-Innovation-RG-01
-          dockerfilePath: extractous_src/Dockerfile
-          imageToBuild: arcoinnoregistry.azurecr.io/extractous-job:${{ github.sha }}
-          environmentVariables: >-
-            BLOB_ENDPOINT=${{ env.BLOB_ENDPOINT }}
-            BLOB_ACCESS_KEY=${{ env.BLOB_ACCESS_KEY }}
-            BLOB_SECRET_KEY=${{ secrets.BLOB_SECRET_KEY }}
-            BLOB_BUCKET=${{ env.BLOB_BUCKET }}
-            SERVICE_BUS_CONNECTION_STRING=${{ secrets.UNSTRUCTURED_CONNECTION_STRING }}
-            QUEUE_NAME=wally-to-unstructured
-            WALLY_URL=${{ env.WALLY_URL }}
-            WALLY_BEARER=${{ secrets.WALLY_BEARER }}
-            QUEUE_MESSAGE_COUNT=${{ env.QUEUE_MESSAGE_COUNT }}
-            QUEUE_WAIT_TIME=${{ env.QUEUE_WAIT_TIME }}
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
+          password: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
+          
+      - name: 'Build and Push Extractous Image'
+        run: |
+          docker build extractous_src/Dockerfile -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/extractous_job:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/extractous_job:${{ github.sha }}
+          
+      - name: 'Build and Push Unstructured image'
+        run: |
+          docker build unstructured_src/Dockerfile -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/unstructured_job:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/unstructured_job:${{ github.sha }}
