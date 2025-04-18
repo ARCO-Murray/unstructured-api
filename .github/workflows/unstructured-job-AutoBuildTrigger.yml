@@ -31,7 +31,22 @@ jobs:
           tenant-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.UNSTRUCTUREDAPI_AZURE_SUBSCRIPTION_ID }}
 
-      - name: Build and push container image to registry
+      - name: Build and push Unstructured container image to registry
+        uses: azure/container-apps-deploy-action@v2
+        with:
+          appSourcePath: ${{ github.workspace }}/
+          _dockerfilePathKey_: _dockerfilePath_
+          registryUrl: arcoinnoregistry.azurecr.io
+          registryUsername: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
+          registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
+          containerAppName: unstructured-job
+          resourceGroup: ARCO-PROD-Innovation-RG-01
+          dockerfilePath: unstructured_src/Dockerfile
+          imageToBuild: arcoinnoregistry.azurecr.io/unstructured-job:${{ github.sha }}
+          _buildArgumentsKey_: |
+            _buildArgumentsValues_
+
+      - name: Build and push Extractous container image to registry
         uses: azure/container-apps-deploy-action@v2
         with:
           appSourcePath: ${{ github.workspace }}
@@ -39,9 +54,9 @@ jobs:
           registryUrl: arcoinnoregistry.azurecr.io
           registryUsername: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
-          containerAppName: unstructured-job
+          containerAppName: extractous-job
           resourceGroup: ARCO-PROD-Innovation-RG-01
-          imageToBuild: arcoinnoregistry.azurecr.io/unstructured-job:${{ github.sha }}
+          dockerfilePath: extractous_src/Dockerfile
+          imageToBuild: arcoinnoregistry.azurecr.io/extractous-job:${{ github.sha }}
           _buildArgumentsKey_: |
             _buildArgumentsValues_
-
