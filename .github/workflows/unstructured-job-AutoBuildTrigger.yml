@@ -19,7 +19,14 @@ jobs:
     permissions: 
       id-token: write #This is required for requesting the OIDC JWT Token
       contents: read #Required when GH token is used to authenticate with private repo
-
+    env:
+      BLOB_ENDPOINT: https://arcoprodwallystorage.blob.core.windows.net/
+      BLOB_ACCESS_KEY: arcoprodwallystorage
+      BLOB_BUCKET: documents
+      WALLY_URL: https://wally-arco-v2.blackplant-1feb3b88.eastus.azurecontainerapps.io
+      QUEUE_MESSAGE_COUNT: 10
+      QUEUE_WAIT_TIME: 5
+      
     steps:
       - name: Checkout to the branch
         uses: actions/checkout@v2
@@ -34,8 +41,7 @@ jobs:
       - name: Build and push Unstructured container image to registry
         uses: azure/container-apps-deploy-action@v2
         with:
-          appSourcePath: ${{ github.workspace }}/
-          _dockerfilePathKey_: _dockerfilePath_
+          appSourcePath: ${{ github.workspace }}
           registryUrl: arcoinnoregistry.azurecr.io
           registryUsername: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.UNSTRUCTUREDAPI_REGISTRY_PASSWORD }}
@@ -43,8 +49,17 @@ jobs:
           resourceGroup: ARCO-PROD-Innovation-RG-01
           dockerfilePath: unstructured_src/Dockerfile
           imageToBuild: arcoinnoregistry.azurecr.io/unstructured-job:${{ github.sha }}
-          _buildArgumentsKey_: |
-            _buildArgumentsValues_
+          environmentVariables: |
+            BLOB_ENDPOINT=$BLOB_ENDPOINT
+            BLOB_ACCESS_KEY=$BLOB_ACCESS_KEY
+            BLOB_SECRET_KEY=${{ secrets.BLOB_SECRET_KEY }}
+            BLOB_BUCKET=$BLOB_BUCKET
+            SERVICE_BUS_CONNECTION_STRING=${{ secrets.EXTRACTOUS_CONNECTION_STRING }}
+            QUEUE_NAME=wally-to-extractous
+            WALLY_URL=$WALLY_URL
+            WALLY_BEARER=${{ secrets.WALLY_BEARER }}
+            QUEUE_MESSAGE_COUNT=$QUEUE_MESSAGE_COUNT
+            QUEUE_WAIT_TIME=$QUEUE_WAIT_TIME
 
       - name: Build and push Extractous container image to registry
         uses: azure/container-apps-deploy-action@v2
@@ -58,5 +73,14 @@ jobs:
           resourceGroup: ARCO-PROD-Innovation-RG-01
           dockerfilePath: extractous_src/Dockerfile
           imageToBuild: arcoinnoregistry.azurecr.io/extractous-job:${{ github.sha }}
-          _buildArgumentsKey_: |
-            _buildArgumentsValues_
+          environmentVariables: |
+            BLOB_ENDPOINT=$BLOB_ENDPOINT
+            BLOB_ACCESS_KEY=$BLOB_ACCESS_KEY
+            BLOB_SECRET_KEY=${{ secrets.BLOB_SECRET_KEY }}
+            BLOB_BUCKET=$BLOB_BUCKET
+            SERVICE_BUS_CONNECTION_STRING=${{ secrets.UNSTRUCTURED_CONNECTION_STRING }}
+            QUEUE_NAME=wally-to-unstructured
+            WALLY_URL=$WALLY_URL
+            WALLY_BEARER=${{ secrets.WALLY_BEARER }}
+            QUEUE_MESSAGE_COUNT=$QUEUE_MESSAGE_COUNT
+            QUEUE_WAIT_TIME=$QUEUE_WAIT_TIME
