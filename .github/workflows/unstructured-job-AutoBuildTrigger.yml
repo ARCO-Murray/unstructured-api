@@ -40,10 +40,10 @@ jobs:
           
       - name: 'Build and Push Extractous Image'
         run: |
-          docker build extractous_src/Dockerfile -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/extractous_job:${{ github.sha }}
+          docker build . -f extractous_src/Dockerfile -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/extractous_job:${{ github.sha }}
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/extractous_job:${{ github.sha }}
           
       - name: 'Build and Push Unstructured image'
         run: |
-          docker build unstructured_src/Dockerfile -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/unstructured_job:${{ github.sha }}
+          docker build . -f unstructured_src/Dockerfile -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/unstructured_job:${{ github.sha }}
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/unstructured_job:${{ github.sha }}
