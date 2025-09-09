@@ -33,7 +33,7 @@ extractor.set_xml_output(True)
 
 @main_setup
 @log_execution_time
-@process_messages
+@process_messages("extractous")
 async def handle_message(blob_url, file_name):
     file = await download_file(blob_url, file_name)  # returns ByteIO stream
     logging.debug(f"temp download file name: {file}")

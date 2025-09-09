@@ -46,7 +46,7 @@ async def partition_doc(file, filename, coordinates, strategy, max_characters):
 
 @main_setup
 @log_execution_time
-@process_messages
+@process_messages("unstructured")
 async def handle_message(blob_url, file_name, coordinates=False, strategy="hi_res", max_characters=500):
     file = download_file(blob_url)  # returns ByteIO stream
 

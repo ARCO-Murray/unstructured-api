@@ -35,49 +35,67 @@ def log_execution_time(func):
     return wrapper
 
 
-def process_messages(func):
-    @wraps(func)
-    async def wrapper():
-        try:
-            messages = await retrieve_messages();
-        except Exception as e:
-            logging.error(f"Failed to retrieve messages: {e}")
-            return
-        if not len(messages):
-            logging.info("No messages fetched")
-            return
-
-        errored = 0
-        successful = 0
-
-        for msg in messages:
-            logging.info(f"Processing message: {msg}")
-            if not (callback_url := msg.pop("callback_url")):
-                logging.info("No callback_url, not processing message")
-                continue
+def process_messages(source):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper():
             try:
-                result = await func(**msg)
-                if result is None:
-                    raise Exception("Result is None")
-                logging.info(f"result: {result[0:10]}")
-
-                notify_callback(callback_url, status=200, data=result)
-                successful += 1
+                messages = await retrieve_messages()
             except Exception as e:
-                errored += 1
-                logging.error(f"process_messages Error: {e}")
-                if isinstance(e, TypeError):
-                    notify_callback(callback_url, status=400, data=f"Type error: message doesn't contain correct info. {e}")
-                else:
-                    notify_callback(callback_url, status=500, data="Internal server Error")
+                logging.error(f"Failed to retrieve messages: {e}")
+                return
+            if not len(messages):
+                logging.info("No messages fetched")
+                return
 
-        logging.info(f"Processed {len(messages)} messages: {successful} success, {errored} err")
-    return wrapper
+            errored = 0
+            successful = 0
+
+            for msg in messages:
+                logging.info(f"Processing message: {msg}")
+                if not (callback_url := msg.pop("callback_url")):
+                    logging.info("No callback_url, not processing message")
+                    continue
+                try:
+                    result = await func(**msg)
+                    if result is None:
+                        raise Exception("Result is None")
+                    logging.info(f"result: {result[0:10]}")
+
+                    notify_callback(
+                        callback_url, status=200, source=source, data=result
+                    )
+                    successful += 1
+                except Exception as e:
+                    errored += 1
+                    logging.error(f"process_messages Error: {e}")
+                    if isinstance(e, TypeError):
+                        notify_callback(
+                            callback_url,
+                            status=400,
+                            source=source,
+                            data=f"Type error: message doesn't contain correct info. {e}",
+                        )
+                    else:
+                        notify_callback(
+                            callback_url,
+                            status=500,
+                            source=source,
+                            data="Internal server Error",
+                        )
+
+            logging.info(
+                f"Processed {len(messages)} messages: {successful} success, {errored} err"
+            )
+
+        return wrapper
+
+    return decorator
 
 
-def notify_callback(callback_url, status, data):
+def notify_callback(callback_url, status, source, data):
     headers = {"Authorization": f"Bearer {env.WALLY_BEARER}"}
-    payload = {"status_code": status, "data": data}
+    payload = {"status_code": status, "source": source, "data": data}
     try:
         response = post(
             urljoin(env.WALLY_URL, callback_url),
@@ -97,6 +115,5 @@ def main_setup(func):
         logging.info("Starting up")
         result = asyncio.run(func(*args, **kwargs))
         return result
-    return wrapper
-    
 
+    return wrapper
